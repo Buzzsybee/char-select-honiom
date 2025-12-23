@@ -547,6 +547,9 @@ local function act_roll_boost(m)
         set_mario_action(m, ACT_ROLL_H, 0)
         return
     end
+
+    --gravity
+    m.vel.y = m.vel.y -2
 end
 hook_mario_action(ACT_ROLL_BOOST, {every_frame = act_roll_boost})
 
@@ -720,18 +723,18 @@ local function update_hmario(m)
         end
     end
 
-    if m.action == ACT_CROUCH_SLIDE then
+    if m.action == ACT_CROUCHING or m.action == ACT_START_CROUCHING or m.action == ACT_CROUCH_SLIDE then
         if buttonP & (X_BUTTON | Y_BUTTON) ~= 0 then
-            spawn_particle(m, PARTICLE_MIST_CIRCLE)
-            set_mario_action(m, ACT_ROLL_H, 0)
+            set_mario_action(m, ACT_ROLL_BOOST, 0)
+            m.vel.y = 5
             m.forwardVel = m.forwardVel + 20
         end
     end
 
     if m.action == ACT_GROUND_POUND_LAND then
         if buttonP & (X_BUTTON | Y_BUTTON) ~= 0 then
-            spawn_particle(m, PARTICLE_HORIZONTAL_STAR)
-            set_mario_action(m, ACT_ROLL_H, 0)
+            set_mario_action(m, ACT_ROLL_BOOST, 0)
+            m.vel.y = 5
             m.forwardVel = 70
         end
 
