@@ -104,6 +104,7 @@ for _, v in ipairs(groundCapThrowActsList) do
     groundCapThrowActs[v] = true
 end
 
+--- @param m MarioState
 local function spawn_particle(m, particle)
     m.particleFlags = m.particleFlags | particle
 end
@@ -120,13 +121,17 @@ local function convert_s16(num)
     return num
 end
 
+--- @param m MarioState
 local function set_turn_speed(m, speed)
     m.faceAngle.y = m.intendedYaw - approach_s32(convert_s16(m.intendedYaw - m.faceAngle.y), 0, speed, speed)
 end
 
+--- @param m MarioState
 function get_current_speed(m)
     return math.sqrt((m.vel.x * m.vel.x) + (m.vel.z * m.vel.z))
 end
+
+--- @param m MarioState
 local function open_doors_check(m)
   
     local dist = 150
@@ -163,6 +168,7 @@ local function open_doors_check(m)
     end
 end
 
+--- @param m MarioState
 local function apply_traction_friction(m)
     local e = gExtrasStates[m.playerIndex]
     -- Odyssey-style friction: exponential decay (approach) toward normal running speed
@@ -198,6 +204,7 @@ local function apply_traction_friction(m)
     end
 end
 
+--- @param m MarioState
 local function update_hmario_speed(m)
     local e = gExtrasStates[m.playerIndex]
     local maxTargetSpeed = 0.0;
@@ -228,6 +235,7 @@ local function update_hmario_speed(m)
     apply_slope_accel(m);
 end
 
+--- @param m MarioState
 local function update_rolling_speed(m)
     local e = gExtrasStates[m.playerIndex]
     local maxTargetSpeed = 0.0;
@@ -266,6 +274,7 @@ local function update_rolling_speed(m)
     apply_slope_accel(m);
 end
 
+--- @param m MarioState
 local function allow_cap_throw(m)
     local e = gExtrasStates[m.playerIndex]
     local buttonP = m.controller.buttonPressed
@@ -298,6 +307,7 @@ local function allow_cap_throw(m)
     return true
 end
 
+--- @param m MarioState
 local function make_actionable(m)
     local e = gExtrasStates[m.playerIndex]
     local mag = (m.controller.stickMag) / 64
@@ -331,6 +341,7 @@ local function make_actionable(m)
     return true
 end
 
+--- @param m MarioState
 local function make_air_actionable(m)
     local e = gExtrasStates[m.playerIndex]
     local buttonP = m.controller.buttonPressed
@@ -343,6 +354,7 @@ local function make_air_actionable(m)
     if allow_cap_throw(m) then return true end
 end
 
+--- @param m MarioState
 local function jump_gravity(m)
     if m.action ~= ACT_LONG_JUMP then
         m.vel.y = m.vel.y + 6
@@ -351,6 +363,7 @@ local function jump_gravity(m)
     end
 end
 
+--- @param m MarioState
 function act_hmario_walking(m)
     local startPos = m.pos;
     local startYaw = m.faceAngle.y;
@@ -403,6 +416,7 @@ function act_hmario_walking(m)
 end
 hook_mario_action(ACT_RUN_M, { every_frame = act_hmario_walking} )
 
+--- @param m MarioState
 local function act_cap_throw_air_h(m)
     local e = gExtrasStates[m.playerIndex]
     
@@ -427,7 +441,7 @@ local function act_cap_throw_air_h(m)
 end
 hook_mario_action(ACT_CAP_THROW_AIR_H, {every_frame = act_cap_throw_air_h})
 
-
+--- @param m MarioState
 local function act_cap_throw_ground_h(m)
     local e = gExtrasStates[m.playerIndex]
 
@@ -464,6 +478,7 @@ local function act_cap_throw_ground_h(m)
 end
 hook_mario_action(ACT_CAP_THROW_GROUND_H, {every_frame = act_cap_throw_ground_h})
 
+--- @param m MarioState
 local function act_roll_h(m)
     local e = gExtrasStates[m.playerIndex]
     local mag = (m.controller.stickMag) / 64
@@ -529,6 +544,7 @@ local function act_roll_h(m)
 end
 hook_mario_action(ACT_ROLL_H, {every_frame = act_roll_h, gravity = nil})
 
+--- @param m MarioState
 local function act_roll_boost(m)
     local e = gExtrasStates[m.playerIndex]
     local mag = (m.controller.stickMag) / 64
@@ -558,9 +574,14 @@ local function act_wall_slide(m)
     local buttonD = m.controller.buttonDown
     local buttonP = m.controller.buttonPressed
 
-    mario_set_forward_vel(m, -1.0)
+    mario_set_forward_vel(m, -2.0)
 
     common_air_action_step(m, ACT_FREEFALL, CHAR_ANIM_START_WALLKICK, STEP_TYPE_AIR)
+
+    if m.wall == nil and e.actionTick > 2 then
+        mario_set_forward_vel(m, 0.0)
+        return set_mario_action(m, ACT_FREEFALL, 0)
+    end
 
     if buttonD & Z_TRIG ~= 0 then
         set_mario_action(m, ACT_FREEFALL, 0)
@@ -602,7 +623,7 @@ local function gp_jump_rotation(m)
     end
 end
 
-local function before_h_update(m)
+local function before_h_update(m, inc)
     local e = gExtrasStates[m.playerIndex]
 
     e.lastSpeed = get_current_speed(m)
@@ -683,6 +704,18 @@ local function hmario_on_set_action(m)
         if e.actionTick == 0 then
             m.vel.y = 5
         end
+    end
+
+    local hitWallFlag = (m.action & AIR_STEP_HIT_WALL) ~= 0
+    local isBackwardAir = (m.action == ACT_BACKWARD_AIR_KB)
+    if hitWallFlag and isBackwardAir and jumpActs[m.prevAction] then
+        m.faceAngle.y = m.faceAngle.y + 0x8000
+        m.marioObj.header.gfx.angle.y = m.faceAngle.y
+        m.vel.y = 0
+        m.vel.x = 0
+        m.vel.z = 0
+
+        set_mario_action(m, ACT_WALL_SLIDE, 0)
     end
 end 
 
